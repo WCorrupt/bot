@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionsBitField, EmbedBuilder } = require('discord.js');
 const { exec } = require('child_process');
 const fs = require('fs');
 
@@ -60,7 +60,7 @@ module.exports = {
             option.setName('customcolor')
                 .setDescription('Custom hex code color for the embed'))
         .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
-    async execute(interaction, selectedRole, roleDataFile, reactionRoleDataFile, mainClient, adminUserId, testTokens) {
+    async execute(interaction, selectedRole, roleDataFile, reactionRoleDataFile, activityDataFile, mainClient, adminUserId, testTokens) {
         if (!selectedRole) {
             await interaction.reply({ content: 'No role selected. Use /selectrole to select a role first.', ephemeral: true });
             return;

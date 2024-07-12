@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionsBitField, EmbedBuilder } = require('discord.js');
 const { exec } = require('child_process');
 const fs = require('fs');
 
@@ -64,7 +64,7 @@ module.exports = {
             option.setName('customcolor')
                 .setDescription('Custom hex code color for the embed'))
         .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
-    async execute(interaction, selectedRole, roleDataFile, reactionRoleDataFile, mainClient, adminUserId, testTokens) {
+    async execute(interaction, selectedRole, roleDataFile, reactionRoleDataFile, activityDataFile, mainClient, adminUserId, testTokens) {
         if (!selectedRole) {
             await interaction.reply({ content: 'No role selected. Use /selectrole to select a role first.', ephemeral: true });
             return;
@@ -95,7 +95,7 @@ module.exports = {
         const roleMembers = members.filter(member => member.roles.cache.has(selectedRole.id) && !member.user.bot && !reactedUsers.has(member.id));
 
         if (roleMembers.size === 0) {
-            await interaction.reply({ content: 'No non-bot members found with the selected role who haven\'t reacted to the event.', ephemeral: true });
+            await interaction.reply({ content: 'No non-bot members found with the selected role who haven\'t responded to the event.', ephemeral: true });
             return;
         }
 

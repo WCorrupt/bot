@@ -1,5 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
-const { exec } = require('child_process');
+const { Client, GatewayIntentBits, REST, Routes, PermissionsBitField } = require('discord.js');
 const { token, adminUserId, testTokens } = require('./config.json');
 const fs = require('fs');
 const path = require('path');
@@ -26,9 +25,11 @@ if (fs.existsSync(roleDataFile)) {
     selectedRole = parsedData.roleId ? { id: parsedData.roleId } : null;
 }
 
-const commands = [];
+mainClient.commands = new Map();
+
 const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(file => file.endsWith('.js'));
 
+const commands = [];
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
     commands.push(command.data.toJSON());
