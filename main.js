@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
 const { exec } = require('child_process');
 const { token, adminUserId, testTokens } = require('./config.json');
 const fs = require('fs');
@@ -18,6 +18,7 @@ const mainClient = new Client({
 let selectedRole = null;
 const roleDataFile = './selectedRole.json';
 const reactionRoleDataFile = './reactionRoleData.json';
+const activityDataFile = './activityData.json';
 
 if (fs.existsSync(roleDataFile)) {
     const data = fs.readFileSync(roleDataFile, 'utf8');
@@ -31,6 +32,7 @@ const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(fil
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
     commands.push(command.data.toJSON());
+    mainClient.commands.set(command.data.name, command);
 }
 
 mainClient.once('ready', async () => {
@@ -64,31 +66,58 @@ mainClient.on('interactionCreate', async interaction => {
         }
 
         try {
-            await command.execute(interaction, selectedRole, roleDataFile, reactionRoleDataFile, mainClient, adminUserId, testTokens);
+            await command.execute(interaction, selectedRole, roleDataFile, reactionRoleDataFile, activityDataFile, mainClient, adminUserId, testTokens);
         } catch (error) {
             console.error(error);
             await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
         }
     } else if (interaction.isButton()) {
-        if (fs.existsSync(reactionRoleDataFile)) {
-            let reactionRoleData;
-            try {
-                reactionRoleData = JSON.parse(fs.readFileSync(reactionRoleDataFile, 'utf8'));
-            } catch (err) {
-                console.error('Error reading reactionRoleData.json:', err);
-                return;
-            }
-            const data = reactionRoleData[interaction.message.id];
-            if (data && interaction.customId === `toggleRole_${data.roleId}`) {
-                const member = await interaction.guild.members.fetch(interaction.user.id);
-                const role = interaction.guild.roles.cache.get(data.roleId);
-                if (member.roles.cache.has(role.id)) {
-                    await member.roles.remove(role);
-                    await interaction.reply({ content: `Removed role ${role.name}`, ephemeral: true });
-                } else {
-                    await member.roles.add(role);
-                    await interaction.reply({ content: `Added role ${role.name}`, ephemeral: true });
+        // Handle button interactions for reaction roles and activity check-ins
+        const customId = interaction.customId;
+
+        if (customId.startsWith('toggleRole_')) {
+            if (fs.existsSync(reactionRoleDataFile)) {
+                let reactionRoleData;
+                try {
+                    reactionRoleData = JSON.parse(fs.readFileSync(reactionRoleDataFile, 'utf8'));
+                } catch (err) {
+                    console.error('Error reading reactionRoleData.json:', err);
+                    return;
                 }
+                const data = reactionRoleData[interaction.message.id];
+                if (data && customId === `toggleRole_${data.roleId}`) {
+                    const member = await interaction.guild.members.fetch(interaction.user.id);
+                    const role = interaction.guild.roles.cache.get(data.roleId);
+                    if (member.roles.cache.has(role.id)) {
+                        await member.roles.remove(role);
+                        await interaction.reply({ content: `Removed role ${role.name}`, ephemeral: true });
+                    } else {
+                        await member.roles.add(role);
+                        await interaction.reply({ content: `Added role ${role.name}`, ephemeral: true });
+                    }
+                }
+            }
+        } else if (customId.startsWith('activityCheck_')) {
+            const messageId = customId.split('_')[1];
+            let activityData = { pending: [], checkedIn: [] };
+
+            if (fs.existsSync(activityDataFile)) {
+                try {
+                    activityData = JSON.parse(fs.readFileSync(activityDataFile, 'utf8'));
+                } catch (err) {
+                    console.error('Error reading activityData.json:', err);
+                }
+            }
+
+            if (activityData.pending.includes(messageId)) {
+                activityData.pending = activityData.pending.filter(id => id !== messageId);
+                if (!activityData.checkedIn.includes(interaction.user.id)) {
+                    activityData.checkedIn.push(interaction.user.id);
+                }
+                fs.writeFileSync(activityDataFile, JSON.stringify(activityData));
+                await interaction.reply({ content: 'You have checked in for activity.', ephemeral: true });
+            } else {
+                await interaction.reply({ content: 'This activity check-in is no longer valid.', ephemeral: true });
             }
         }
     }
